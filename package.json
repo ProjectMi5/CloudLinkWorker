@@ -7,7 +7,7 @@
     "test": "test"
   },
   "scripts": {
-    "test": "tape test/*.js"
+    "test": "grunt"
   },
   "keywords": [
     "mi5"
@@ -15,11 +15,10 @@
   "author": "Thomas Frei",
   "license": "MIT",
   "devDependencies": {
-    "blue-tape": "^0.1.10",
+    "chai": "^3.4.0",
+    "chai-as-promised": "^5.1.0",
     "grunt": "^0.4.5",
-    "grunt-tape-run": "^0.1.2",
-    "tape": "^4.2.2",
-    "tape-catch": "^1.0.4"
+    "mocha": "^2.3.3"
   },
   "dependencies": {
     "bluebird": "^3.0.5",

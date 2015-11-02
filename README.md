@@ -20,6 +20,8 @@ or
 
 `npm test`
 
-Notes:
-* tape-catch is used alongside tape to report uncaught errors.
-* blue-tape is used for promise support in tape
+Mocha is used as a test framework, since it has a very nice integration in the Webstorm IDE.
+
+### Devevelopment Packages:
+* grunt is used as a task runner to execute mocha
+* chai-as-promised is used for promise support

@@ -1,13 +1,21 @@
 module.exports = function (grunt) {
+  // Add the grunt-mocha-test tasks.
+  grunt.loadNpmTasks('grunt-mocha-test');
+
   grunt.initConfig({
-    execute: {
-      target: {
-        src: ['tests/*.js']
+    // Configure a mochaTest task
+    mochaTest: {
+      test: {
+        options: {
+          reporter: 'spec',
+          //captureFile: 'grunt-tests-results.txt', // Optionally capture the reporter output to a file
+          quiet: false, // Optionally suppress output to standard out (defaults to false)
+          clearRequireCache: false // Optionally clear the require cache before running tests (defaults to false)
+        },
+        src: ['test/**/*.js']
       }
-    },
+    }
   });
 
-  grunt.loadNpmTasks('grunt-execute');
-  grunt.registerTask('test', ['execute']);
-  grunt.registerTask('default', ['test']);
+  grunt.registerTask('default', 'mochaTest');
 };
