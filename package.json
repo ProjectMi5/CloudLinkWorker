@@ -1,0 +1,21 @@
+{
+  "name": "cloudlink-worker",
+  "version": "0.0.1",
+  "description": "A worker program that is triggering orders on showcase mi5 according to the Mi5-CloudLink database",
+  "main": "app.js",
+  "directories": {
+    "test": "test"
+  },
+  "scripts": {
+    "test": "tape 'tests/**/*.js'"
+  },
+  "keywords": [
+    "mi5"
+  ],
+  "author": "Thomas Frei",
+  "license": "MIT",
+  "devDependencies": {
+    "blue-tape": "^0.1.10",
+    "tape": "^4.2.2"
+  }
+}
