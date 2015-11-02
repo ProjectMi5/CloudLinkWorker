@@ -15,4 +15,17 @@ describe('Basic Mocha functionality testing', function (t) {
       assert.equal(value,1337, 'A leet promise should always return 1337');
     });
   });
+
+  it('callback style async leet 1337', function(done){
+    function leet(cb){
+      setTimeout(function(){
+        cb(false, 1337);
+      });
+    }
+
+    leet(function(err, value){
+      assert.equal(value, 1337, 'A leet cb function should also return 1337');
+      done();
+    })
+  })
 });
