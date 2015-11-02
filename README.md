@@ -19,3 +19,7 @@ or
 ## Development
 
 `npm test`
+
+Notes:
+* tape-catch is used alongside tape to report uncaught errors.
+* blue-tape is used for promise support in tape

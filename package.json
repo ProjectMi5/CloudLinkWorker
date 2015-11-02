@@ -7,7 +7,7 @@
     "test": "test"
   },
   "scripts": {
-    "test": "tape 'tests/**/*.js'"
+    "test": "tape test/*.js"
   },
   "keywords": [
     "mi5"
@@ -16,6 +16,13 @@
   "license": "MIT",
   "devDependencies": {
     "blue-tape": "^0.1.10",
-    "tape": "^4.2.2"
+    "grunt": "^0.4.5",
+    "grunt-tape-run": "^0.1.2",
+    "tape": "^4.2.2",
+    "tape-catch": "^1.0.4"
+  },
+  "dependencies": {
+    "bluebird": "^3.0.5",
+    "mqtt": "^1.5.0"
   }
 }
