@@ -20,6 +20,8 @@ or
 
 `npm test`
 
+Note: for some tests you need a proper configured *config.js* file
+
 Mocha is used as a test framework, since it has a very nice integration in the Webstorm IDE.
 
 ### Devevelopment Packages:
