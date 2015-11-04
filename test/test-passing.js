@@ -27,5 +27,5 @@ describe('Basic Mocha functionality testing', function (t) {
       assert.equal(value, 1337, 'A leet cb function should also return 1337');
       done();
     })
-  })
+  });
 });
