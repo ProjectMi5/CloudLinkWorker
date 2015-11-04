@@ -9,7 +9,7 @@ describe('REST API', function(){
 
     var options = {
       url:  urljoin(config.rest.host, 'helloWorld'),
-      rejectUnAuthorized: false
+      rejectUnAuthorized: false // TODO certificate needs to be bundled correctly
     };
 
     request.get(options, function(err, res, body){
