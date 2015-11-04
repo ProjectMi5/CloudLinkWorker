@@ -1,11 +1,5 @@
 var assert = require('assert');
 
-before(function(){
-  var sslRootCAs = require('ssl-root-cas');
-  sslRootCAs
-    .inject();
-});
-
 describe('REST API', function(){
   it('test connection', function(done){
 
@@ -15,7 +9,7 @@ describe('REST API', function(){
 
     var options = {
       url:  urljoin(config.rest.host, 'helloWorld'),
-      //auth: config.auth,
+      rejectUnAuthorized: false
     };
 
     request.get(options, function(err, res, body){
