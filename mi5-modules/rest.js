@@ -39,6 +39,7 @@ rest.prototype.getOrdersByStatus = function(status){
     request.post(options, function(err, res, body){
       if(err) reject(err);
       try {
+        body = JSON.parse(body);
         resolve(body);
       } catch (err){
         reject(err);
