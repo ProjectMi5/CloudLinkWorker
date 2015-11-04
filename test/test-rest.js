@@ -10,8 +10,10 @@ describe('REST API', function(){
       });
   });
 
-  it('get orders', function(){
-    return rest.getOrders()
+  it('#getOrdersByStatus', function(){
+    var status = 'pending';
+
+    return rest.getOrdersByStatus(status)
       .then(function(orders){
         assert.isArray(orders, 'orders must be an array, even an empty one');
       });

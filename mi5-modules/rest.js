@@ -27,18 +27,19 @@ rest.prototype.checkConnection = function(){
   });
 };
 
-rest.prototype.getOrders = function(){
+rest.prototype.getOrdersByStatus = function(status){
   var options = {
-    url:  urljoin(config.rest.host, config.rest.getOrders),
+    url:  urljoin(config.rest.host, config.rest.getOrdersByStatus),
     rejectUnauthorized: false, // TODO certificate needs to be bundled correctly
+    form: {status: status},
     auth: config.auth
   };
 
   return new Promise(function(resolve, reject){
-    request.get(options, function(err, res, body){
+    request.post(options, function(err, res, body){
       if(err) reject(err);
       try {
-        resolve(JSON.parse(body));
+        resolve(body);
       } catch (err){
         reject(err);
       }
