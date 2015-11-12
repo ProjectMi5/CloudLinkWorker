@@ -42,10 +42,10 @@ rest.prototype.getOrdersByStatus = function(status){
         body = JSON.parse(body);
         resolve(body);
       } catch (err){
-        reject(err);
+        reject('could not perform getOrdersByStatus, maybe server is not reached, or body is not json');
       }
     });
   });
-}
+};
 
 module.exports = new rest();
