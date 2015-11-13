@@ -50,23 +50,6 @@ var Worker = function(){
   this.orders = [];       // collection of all OrderSM to work on
   this.ordersQueue = [];  // collection of all OrderSM that are queued
 };
-
-/**
- * Create worker state machine
- * @type {{target: (Object|Worker), events: *[]}}
- */
-var WorkerStates = {
-  target: Worker.prototype,
-  events: [
-    {name: 'startup', from: 'none', to: 'idle' },
-    {name: 'update', from: 'idle', to: 'updating' },
-    {name: 'work', from: ['updating', 'idle'], to: 'working' },
-    {name: 'pause', from: 'working', to: 'idle' }
-  ]
-};
-StateMachine.create(WorkerStates);
-var CLW = new Worker(); // CloudLinkWorker
-
 Worker.prototype._queueHasPlace = function(){
   return this.queue < this.simultaneous;
 };
@@ -134,31 +117,79 @@ Worker.prototype._extractOrderId = function(order){
 ///////////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////////
 
+Worker.prototype.onupdate = function(event, from, to) {
+  console.log('updating');
+};
+Worker.prototype.onleaveupdating = function(){
+  console.log('onleaveupdating');
+  setTimeout(function(){
+    console.log('updateprocess finished after 1000ms');
+    CLW.transition();
+  }, 1000);
+  return StateMachine.ASYNC;
+};
+Worker.prototype.onwork = function(event, from, to) {
+  console.log('working');
+};
+
+
+/**
+ * Create worker state machine
+ * @type {{target: (Object|Worker), events: *[]}}
+ */
+var WorkerStates = {
+  target: Worker.prototype,
+  error: function(eventName, from, to, args, errorCode, errorMessage) {
+    return 'event ' + eventName + ' was naughty :- ' + errorMessage;
+  },
+  events: [
+    {name: 'startup', from: 'none', to: 'idling' },
+    {name: 'update', from: 'idling', to: 'updating' },
+    {name: 'work', from: ['updating', 'idling'], to: 'working' },
+    {name: 'idle', from: 'working', to: 'idling' }
+  ]
+};
+StateMachine.create(WorkerStates);
+
+var CLW = new Worker();
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////////
+
 /**
  * Program logic and testing functions
  */
-rest.getOrdersByStatus('pending')
-  .then(function (orders) {
-    orders.forEach(function(order){
-      console.log('marketplaceid:', order.marketPlaceId, 'prio:', order.priority, 'orderId', order.orderId);
-      order = new OrderSM(order);
-      CLW.manageOrder(order);
+try {
+  CLW.update();
+  CLW.work();
+} catch(err){
+  console.log(err);
+}
 
-      if(order.order.orderId == 2437) {
-        CLW.enqueueOrder(order);
-      }
-
-      if(order.order.orderId == 2442) {
-        CLW.enqueueOrder(order);
-      }
-    });
-
-    console.log(CLW.getAllOrderIds());
-    console.log(CLW.ordersQueue);
-    console.log('queue size:', CLW.queue);
-    CLW.dequeOrder(2442);
-    console.log(CLW.ordersQueue);
-    console.log('queue size:', CLW.queue);
-
-    console.log(CLW.computeNextOrder());
-  });
+//rest.getOrdersByStatus('pending')
+//  .then(function (orders) {
+//    orders.forEach(function(order){
+//      console.log('marketplaceid:', order.marketPlaceId, 'prio:', order.priority, 'orderId', order.orderId);
+//      order = new OrderSM(order);
+//      CLW.manageOrder(order);
+//
+//      if(order.order.orderId == 2437) {
+//        CLW.enqueueOrder(order);
+//      }
+//
+//      if(order.order.orderId == 2442) {
+//        CLW.enqueueOrder(order);
+//      }
+//    });
+//
+//    console.log(CLW.getAllOrderIds());
+//    console.log(CLW.ordersQueue);
+//    console.log('queue size:', CLW.queue);
+//    CLW.dequeOrder(2442);
+//    console.log(CLW.ordersQueue);
+//    console.log('queue size:', CLW.queue);
+//
+//    console.log(CLW.computeNextOrder());
+//  });
+//
