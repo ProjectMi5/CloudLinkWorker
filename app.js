@@ -5,7 +5,10 @@ var _ = require('underscore');
 
 var rest = require('./mi5-modules/rest');
 
-// Create the orders state machine
+/**
+ * State Machine factory for one CloudLink order
+ * @constructor
+ */
 var OrderSM = function(order){
   this.startup();
   this.order = order;
@@ -28,12 +31,17 @@ var orderStateMachine = {
   ]};
 StateMachine.create(orderStateMachine);
 
+/**
+ * Mange Orders
+ * @constructor
+ */
 var Worker = function(){
   this.simultaneous = 3;  // number of orders that should be produced simultaneously
   this.queue = 0;         // number of queued orders in production
-  this.orders = [];       // complete collection of all orders to work on
+  this.orders = [];       // collection of all OrderSM to work on
+  this.ordersQueue = [];  // collection of all OrderSM that are queued
 };
-Worker.prototype.queueHasPlace = function(){
+Worker.prototype._queueHasPlace = function(){
   if(this.queue < this.simultaneous){
     return true;
   } else {
@@ -41,28 +49,41 @@ Worker.prototype.queueHasPlace = function(){
   }
 };
 Worker.prototype.enqueueOrder = function(order){
-  if(this.queueHasPlace()){
+  if(this._queueHasPlace()){
     this.queue = this.queue + 1;
+    this.ordersQueue.push(order);
   }
 };
-Worker.prototype.dequeOrder = function(order){
-  this.queue = this.queue - 1;
+Worker.prototype.dequeOrder = function(orderid){
+  if(_.contains(this.getAllOrderIds(), orderid)){
+    this.queue = this.queue - 1;
+    // remove the order from this.orders array
+    this.ordersQueue = _.reject(this.ordersQueue, function(order){ return order.orderId == orderid; });
+  }
 };
-Worker.prototype.addOrder = function(order){
+Worker.prototype.manageOrder = function(order){
   this.orders.push(order);
 };
 Worker.prototype.getAllOrderIds = function(){
   var orders = _.pluck(this.orders, 'order');
-  return _.pluck(orders, 'orderId');
-}
+  return _.pluck(orders, 'orderId'); // array
+};
 var CLW = new Worker(); // CloudLinkWorker
 
+/**
+ * Program logic and testing functions
+ */
 rest.getOrdersByStatus('pending')
   .then(function (orders) {
     orders.forEach(function(order){
       var order = new OrderSM(order);
-      CLW.addOrder(order);
+      CLW.manageOrder(order);
+
+      if(order.order.orderId == 2437) {
+        CLW.enqueueOrder(order);
+      }
     });
 
     console.log(CLW.getAllOrderIds());
+    console.log(CLW.ordersQueue);
   });
