@@ -121,15 +121,24 @@ Worker.prototype.onupdate = function(event, from, to) {
   console.log('updating');
 };
 Worker.prototype.onleaveupdating = function(){
+  var self = this;
   console.log('onleaveupdating');
   setTimeout(function(){
     console.log('updateprocess finished after 1000ms');
-    CLW.transition();
+    self.transition();
   }, 1000);
   return StateMachine.ASYNC;
 };
-Worker.prototype.onwork = function(event, from, to) {
-  console.log('working');
+Worker.prototype.onworking = function(event, from, to) {
+  console.log('onworking');
+  this.idle();
+};
+Worker.prototype.onidling = function(event, from, to) {
+  console.log('onidling.... lalala');
+};
+Worker.prototype.onterminate = function(){
+  // exit application
+  console.log('onterminate');
 };
 
 
@@ -144,9 +153,10 @@ var WorkerStates = {
   },
   events: [
     {name: 'startup', from: 'none', to: 'idling' },
-    {name: 'update', from: 'idling', to: 'updating' },
-    {name: 'work', from: ['updating', 'idling'], to: 'working' },
-    {name: 'idle', from: 'working', to: 'idling' }
+    {name: 'update', from: '*', to: 'updating' },
+    {name: 'work', from: '*', to: 'working' },
+    {name: 'idle', from: 'updating', to: 'idling' },
+    {name: 'terminate', from: '*', to: 'terminating' }
   ]
 };
 StateMachine.create(WorkerStates);
@@ -161,11 +171,22 @@ var CLW = new Worker();
  * Program logic and testing functions
  */
 try {
-  CLW.update();
-  CLW.work();
+    CLW.update();
+    CLW.work();
+    CLW.idle();
+    CLW.work();
+    CLW.update();
+    CLW.work();
+    CLW.idle();
+    CLW.update();
+    CLW.work();
 } catch(err){
   console.log(err);
 }
+
+setInterval(function(){
+  console.log('alive....');
+},5000);
 
 //rest.getOrdersByStatus('pending')
 //  .then(function (orders) {
