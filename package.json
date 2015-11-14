@@ -1,6 +1,6 @@
 {
   "name": "cloudlink-worker",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "A worker program that is triggering orders on showcase mi5 according to the Mi5-CloudLink database",
   "main": "app.js",
   "directories": {
@@ -23,7 +23,6 @@
   "dependencies": {
     "bluebird": "^3.0.5",
     "javascript-state-machine": "^2.3.5",
-    "machina": "^1.1.2",
     "mqtt": "^1.5.0",
     "request": "^2.65.0",
     "ssl-root-cas": "^1.1.10",

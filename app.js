@@ -2,6 +2,7 @@ var config = require('./config.js');
 
 var StateMachine = require('javascript-state-machine');
 var _ = require('underscore');
+var Promise = require('bluebird');
 
 var rest = require('./mi5-modules/rest');
 
@@ -10,70 +11,16 @@ var rest = require('./mi5-modules/rest');
 ///////////////////////////////////////////////////////////////////////////////////////////////////////
 
 /**
- * State Machine factory for one CloudLink order
- * @constructor
- */
-var OrderSM = function(order){
-  this.startup();
-  this.order = order;
-};
-var OrderStates = {
-  target: OrderSM.prototype,
-  events: [
-    { name: 'startup', from: 'none',   to: 'pending' },
-    { name: 'accept',   from: 'pending',      to: 'accepted' },
-    { name: 'produce',  from: 'accepted',     to: 'inprogress' },
-    { name: 'finish',   from: 'inprogress',  to: 'done' },
-    { name: 'deliver',  from: 'done',         to: 'delivered' },
-    { name: 'archive',
-        from: ['rejected', 'delivered', 'failure', 'aborted'],
-        to: 'archived' },
-    { name: 'reject',   from: 'pending',      to: 'rejected' },
-    { name: 'abort',    from: ['pending', 'accepted'], to: 'aborted' },
-    { name: 'fail',     from: ['inprogress', 'done', 'delivered'],
-        to: 'failure' }
-  ]};
-StateMachine.create(OrderStates);
-
-///////////////////////////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////////
-
-/**
  * Worker instance
  * @constructor
+ *
+ * Every promise need to have correct context. Use: new Promise().bind(Worker[/this])
+ * http://stackoverflow.com/questions/26056188/elegant-callback-binding-when-using-promises-and-prototypes-in-javascript
  */
 var Worker = function(){
-  this.startup();         // startup for state machine
   this.simultaneous = 3;  // number of orders that should be produced simultaneously
   this.queue = 0;         // number of queued orders in production
-  this.orders = [];       // collection of all OrderSM to work on
-  this.ordersQueue = [];  // collection of all OrderSM that are queued
-};
-Worker.prototype._queueHasPlace = function(){
-  return this.queue < this.simultaneous;
-};
-Worker.prototype.enqueueOrder = function(order){
-  if(this._queueHasPlace()){
-    this.queue = this.queue + 1;
-    this.ordersQueue.push(order);
-  }
-};
-Worker.prototype.dequeOrder = function(orderid){
-  if(_.contains(this.getAllOrderIds(), orderid)){
-    this.queue = this.queue - 1;
-    // remove the order from this.orders array
-    this.ordersQueue = _.reject(this.ordersQueue, function(item){
-        return item.order.orderId == orderid;
-    });
-  }
-};
-Worker.prototype.manageOrder = function(order){
-  this.orders.push(order);
-};
-Worker.prototype.getAllOrderIds = function(){
-  var orders = _.pluck(this.orders, 'order');
-  return _.pluck(orders, 'orderId'); // array
+  this._orders = [];       // collection of all OrderSM to work on
 };
 /**
  * compute which order is next
@@ -84,133 +31,114 @@ Worker.prototype.getAllOrderIds = function(){
  *  orderId (implicit) (lowest orderId first)
  */
 Worker.prototype.computeNextOrder = function(){
-  var pureOrders = _.pluck(this.orders, 'order');
+  var deferred = Promise.pending();
+  deferred.promise.bind(this);
+
+  var orders = this._orders;
 
   // Sort by orderId first, so implicit order is given
-  pureOrders = _.sortBy(pureOrders, 'orderId');
-  pureOrders = _.sortBy(pureOrders, 'priority');
+  orders = _.sortBy(orders, 'orderId');
+  orders = _.sortBy(orders, 'priority');
 
   // Look for eu orders and return first element
-  var euOrders = _.filter(pureOrders, function(order){
+  var euOrders = _.filter(orders, function(order){
       if(order.marketPlaceId == 'eu'){
-        return true;
+        return true; //sorting function
       }
     });
   if(!_.isEmpty(euOrders)){
-    return this._extractOrderId(euOrders.shift());
+    deferred.resolve(euOrders.shift()); // return top element
+    return deferred.promise;
   }
 
   // Get highest priority
-  if(!_.isEmpty(pureOrders)){
-    return this._extractOrderId(pureOrders.shift());
+  if(!_.isEmpty(orders)){
+    deferred.resolve(orders.shift()); // return top element
+    return deferred.promise;
   }
 };
-Worker.prototype._extractOrderId = function(order){
-  try{
-    return order.orderId;
-  } catch (err){
-    console.log('the given object is not an order or does not have the element orderId on the first level', err);
+//Worker.prototype._extractOrderId = function(order){
+//  try{
+//    return order.orderId;
+//  } catch (err){
+//    console.log('the given object is not an order or does not have the element orderId on the first level', err);
+//  }
+//};
+Worker.prototype.getPendingOrders = function(){
+  return rest.getOrdersByStatus('pending').bind(this);
+};
+Worker.prototype.manageIncomingOrdersArray = function(orders){
+  if(!_.isArray(orders)){
+    throw new Error('orders is not an array');
   }
-};
 
-///////////////////////////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////////
-
-Worker.prototype.onupdate = function(event, from, to) {
-  console.log('updating');
-};
-Worker.prototype.onleaveupdating = function(){
+  // TODO: Only add order if it does not exist
   var self = this;
-  console.log('onleaveupdating');
-  setTimeout(function(){
-    console.log('updateprocess finished after 1000ms');
-    self.transition();
-  }, 1000);
-  return StateMachine.ASYNC;
-};
-Worker.prototype.onworking = function(event, from, to) {
-  console.log('onworking');
-  this.idle();
-};
-Worker.prototype.onidling = function(event, from, to) {
-  console.log('onidling.... lalala');
-};
-Worker.prototype.onterminate = function(){
-  // exit application
-  console.log('onterminate');
-};
+  _.each(orders, function(order){
+    self._orders.push(order);
+  });
 
+  return new Promise(function(res){res();}).bind(this);
+};
 
 /**
- * Create worker state machine
- * @type {{target: (Object|Worker), events: *[]}}
+ * Execute accepted orders
+ * -----------------------
+ * Get every minute a complete list
+ * (in addition to mqtt, since it might be possible due to connection problems, that we miss some?)
  */
-var WorkerStates = {
-  target: Worker.prototype,
-  error: function(eventName, from, to, args, errorCode, errorMessage) {
-    return 'event ' + eventName + ' was naughty :- ' + errorMessage;
-  },
-  events: [
-    {name: 'startup', from: 'none', to: 'idling' },
-    {name: 'update', from: '*', to: 'updating' },
-    {name: 'work', from: '*', to: 'working' },
-    {name: 'idle', from: 'updating', to: 'idling' },
-    {name: 'terminate', from: '*', to: 'terminating' }
-  ]
-};
-StateMachine.create(WorkerStates);
+Worker.prototype.executeAcceptedOrders = function() {
+  var self = this;
+  self.getPendingOrders()
+    .then(self.manageIncomingOrdersArray)
+    .then(self.computeNextOrder)
+    .then(function(orderid){
+      console.log('order', orderid);
+      return new Promise(function(res){res();}).bind(self);
+    })
+    .then()
+    .catch(function(err){
+      console.log('ERROR',err);
+    });
 
-var CLW = new Worker();
 
-///////////////////////////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////////
-
-/**
- * Program logic and testing functions
- */
-try {
-    CLW.update();
-    CLW.work();
-    CLW.idle();
-    CLW.work();
-    CLW.update();
-    CLW.work();
-    CLW.idle();
-    CLW.update();
-    CLW.work();
-} catch(err){
-  console.log(err);
+  //.then(executeOrder)
+  //.then(updateOrderStatus);
 }
 
-setInterval(function(){
-  console.log('alive....');
-},5000);
+///////////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////////
 
-//rest.getOrdersByStatus('pending')
-//  .then(function (orders) {
-//    orders.forEach(function(order){
-//      console.log('marketplaceid:', order.marketPlaceId, 'prio:', order.priority, 'orderId', order.orderId);
-//      order = new OrderSM(order);
-//      CLW.manageOrder(order);
+var CLW = new Worker(); // CloudLinkWorker
+CLW.executeAcceptedOrders();
+//setInterval(executeAcceptedOrders, 60*1000);
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////////
+
+/**
+ * Accept orders
+ * -----------------------
+ * Get every minute a complete list
+ */
+//setInterval(function(){
+//  rest.getOrdersByStatus('pending')
+//    .then(computeApprovalOrder)
+//    .then(updateOrderStatus);
+//}, 60*1000);
+
+/**
+ * Listen to changes via MQTT
+ */
+//mqtt.on('newOrder', function(topic, message){
+//  // if order pending:
+//  computeApprovalOrder()
+//    .then(updateOrderStatus);
 //
-//      if(order.order.orderId == 2437) {
-//        CLW.enqueueOrder(order);
-//      }
-//
-//      if(order.order.orderId == 2442) {
-//        CLW.enqueueOrder(order);
-//      }
-//    });
-//
-//    console.log(CLW.getAllOrderIds());
-//    console.log(CLW.ordersQueue);
-//    console.log('queue size:', CLW.queue);
-//    CLW.dequeOrder(2442);
-//    console.log(CLW.ordersQueue);
-//    console.log('queue size:', CLW.queue);
-//
-//    console.log(CLW.computeNextOrder());
-//  });
-//
+//  // if order accepted
+//  computeNextOrder()
+//    .then(executeOrder)
+//    .then(updateOrderStatus);
+//});
