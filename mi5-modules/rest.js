@@ -48,4 +48,46 @@ rest.prototype.getOrdersByStatus = function(status){
   });
 };
 
+rest.prototype.updateOrderStatus = function(orderid, status){
+  var options = {
+    url:  urljoin(config.rest.host, config.rest.updateOrderStatus),
+    rejectUnauthorized: false, // TODO certificate needs to be bundled correctly
+    form: {id: orderid, status: status},
+    auth: config.auth
+  };
+
+  return new Promise(function(resolve, reject){
+    request.post(options, function(err, res, body){
+      if(err) reject(err);
+      try {
+        body = JSON.parse(body);
+        resolve(body);
+      } catch (err){
+        reject('problems in JSON.parse, probably return is not JSON formatted');
+      }
+    });
+  });
+};
+
+rest.prototype.performOrder = function(){
+  var options = {
+    url:  urljoin(config.rest.host, config.rest.placeOrder),
+    rejectUnauthorized: false, // TODO certificate needs to be bundled correctly
+    form: {order: '{"recipeId":10010,"parameters":[],"marketPlaceId":"eu"}'},
+    auth: config.auth
+  };
+
+  return new Promise(function(resolve, reject){
+    request.post(options, function(err, res, body){
+      if(err) reject(err);
+      try {
+        body = JSON.parse(body);
+        resolve(body);
+      } catch (err){
+        reject('problems in JSON.parse, probably return is not JSON formatted');
+      }
+    });
+  });
+};
+
 module.exports = new rest();

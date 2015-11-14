@@ -32,6 +32,9 @@ Worker.prototype.computeNextOrder = function(){
   deferred.promise.bind(this);
 
   var orders = this._orders;
+  if(_.isEmpty(orders)){
+    throw new Error('order list is empty - nothing to process');
+  }
 
   // Sort by orderId first, so implicit order is given
   orders = _.sortBy(orders, 'orderId');
@@ -54,9 +57,15 @@ Worker.prototype.computeNextOrder = function(){
     return deferred.promise;
   }
 };
+
 Worker.prototype.getPendingOrders = function(){
   return this.rest.getOrdersByStatus('pending').bind(this);
 };
+
+Worker.prototype.getAcceptedOrders = function(){
+  return this.rest.getOrdersByStatus('accepted').bind(this);
+};
+
 Worker.prototype.manageIncomingOrdersArray = function(orders){
   if(!_.isArray(orders)){
     throw new Error('orders is not an array');
@@ -64,12 +73,14 @@ Worker.prototype.manageIncomingOrdersArray = function(orders){
 
   // TODO: Only add order if it does not exist
   var self = this;
+  self._orders = []; //clean orders array for new complete list
   _.each(orders, function(order){
     self._orders.push(order);
   });
 
   return new Promise(function(res){res();}); // 'void' Promises do not need .bind(this);
 };
+
 Worker.prototype.executeOrder = function(order){
   var deferred = Promise.pending();
   deferred.promise.bind(this);
@@ -82,8 +93,29 @@ Worker.prototype.executeOrder = function(order){
     TaskID : order.orderId,
   };
 
-  simpleRecipeInterface.setOrder(opcuaOrder, order.parameters, deferred.resolve);
+  simpleRecipeInterface.setOrder(opcuaOrder, order.parameters, function(err){
+    if(err){
+      deferred.reject(err);
+    } else {
+      deferred.resolve({status: 'ok'});
+    }
+  });
   return deferred.promise;
+};
+
+Worker.prototype.wait = function(){
+  console.log('INFO: wait 2s');
+  var deferred = Promise.pending();
+  deferred.promise.bind(this);
+  setTimeout(function(){
+    deferred.resolve();
+  },2000);
+  return deferred.promise;
+};
+
+Worker.prototype.setInProgressToOrder = function(order){
+  console.log('INFO: updating status order ', order.orderId, ' from "',order.status,'" to: in progress');
+  return this.rest.updateOrderStatus(order.orderId, 'in progress').bind(this);
 };
 
 /**
@@ -94,19 +126,36 @@ Worker.prototype.executeOrder = function(order){
  */
 Worker.prototype.executeAcceptedOrders = function() {
   var self = this;
-  self.getPendingOrders()
+  var currentOrder;
+  return self.getAcceptedOrders()
     .then(self.manageIncomingOrdersArray)
     .then(self.computeNextOrder)
-    //.then(console.log)
-    .then(self.executeOrder)
-    .then(function(err, res){
-      console.log(err, res);
-      console.log('order was probably executed');
+    .then(function(order){
+      currentOrder = order;
+      console.log('INFO: Next order will be:', order);
+      return new Promise(function(res){res(order);}).bind(self);
     })
-    //.then(self.updateOrderStatus)
+    .then(self.executeOrder)
+    .then(function() {
+      console.log('INFO: order was executed');
+      return self.setInProgressToOrder(currentOrder);
+    })
+    .then(function(){
+      console.log('INFO: order is now in progress');
+    })
 
     .catch(function(err){
       console.log('ERROR',err);
+    });
+};
+
+Worker.prototype.run = function(){
+  var self = this;
+  return self.executeAcceptedOrders()
+    .then(self.wait)
+    .then(function(){
+      console.log('INFO: resursive call to Worker.run()');
+      return self.run();
     });
 };
 
@@ -115,8 +164,16 @@ Worker.prototype.executeAcceptedOrders = function() {
 ///////////////////////////////////////////////////////////////////////////////////////////////////////
 
 var CLW = new Worker(); // CloudLinkWorker
-CLW.executeAcceptedOrders();
-//setInterval(executeAcceptedOrders, 60*1000);
+CLW.run();
+
+// Perform an order:
+CLW.rest.performOrder()
+  .then(function(res){
+    console.log('order performed',res);
+  })
+  .catch(function(err){
+    console.log('performOrder ERR:',err);
+  });
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////////
