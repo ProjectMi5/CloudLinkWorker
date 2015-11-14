@@ -1,27 +1,24 @@
-var config = require('./config.js');
-
-var StateMachine = require('javascript-state-machine');
 var _ = require('underscore');
 var Promise = require('bluebird');
-
-var rest = require('./mi5-modules/rest');
-
-///////////////////////////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////////
-///////////////////////////////////////////////////////////////////////////////////////////////////////
 
 /**
  * Worker instance
  * @constructor
  *
  * Every promise need to have correct context. Use: new Promise().bind(Worker[/this])
+ * More information:
  * http://stackoverflow.com/questions/26056188/elegant-callback-binding-when-using-promises-and-prototypes-in-javascript
+ * also google: bind context promise
  */
 var Worker = function(){
-  this.simultaneous = 3;  // number of orders that should be produced simultaneously
-  this.queue = 0;         // number of queued orders in production
+  this.config = require('./config.js');
+  this.rest = require('./mi5-modules/rest');
+
+  this._simultaneous = 3;  // number of orders that should be produced simultaneously
+  this._queue = 0;         // number of queued orders in production
   this._orders = [];       // collection of all OrderSM to work on
 };
+
 /**
  * compute which order is next
  *
@@ -57,15 +54,8 @@ Worker.prototype.computeNextOrder = function(){
     return deferred.promise;
   }
 };
-//Worker.prototype._extractOrderId = function(order){
-//  try{
-//    return order.orderId;
-//  } catch (err){
-//    console.log('the given object is not an order or does not have the element orderId on the first level', err);
-//  }
-//};
 Worker.prototype.getPendingOrders = function(){
-  return rest.getOrdersByStatus('pending').bind(this);
+  return this.rest.getOrdersByStatus('pending').bind(this);
 };
 Worker.prototype.manageIncomingOrdersArray = function(orders){
   if(!_.isArray(orders)){
@@ -78,7 +68,22 @@ Worker.prototype.manageIncomingOrdersArray = function(orders){
     self._orders.push(order);
   });
 
-  return new Promise(function(res){res();}).bind(this);
+  return new Promise(function(res){res();}); // 'void' Promises do not need .bind(this);
+};
+Worker.prototype.executeOrder = function(order){
+  var deferred = Promise.pending();
+  deferred.promise.bind(this);
+
+  var simpleRecipeInterface = require('./mi5-modules/simpleRecipeInterface');
+
+  var opcuaOrder = {
+    Pending : true,
+    RecipeID : order.recipeId,
+    TaskID : order.orderId,
+  };
+
+  simpleRecipeInterface.setOrder(opcuaOrder, order.parameters, deferred.resolve);
+  return deferred.promise;
 };
 
 /**
@@ -92,19 +97,18 @@ Worker.prototype.executeAcceptedOrders = function() {
   self.getPendingOrders()
     .then(self.manageIncomingOrdersArray)
     .then(self.computeNextOrder)
-    .then(function(orderid){
-      console.log('order', orderid);
-      return new Promise(function(res){res();}).bind(self);
+    //.then(console.log)
+    .then(self.executeOrder)
+    .then(function(err, res){
+      console.log(err, res);
+      console.log('order was probably executed');
     })
-    .then()
+    //.then(self.updateOrderStatus)
+
     .catch(function(err){
       console.log('ERROR',err);
     });
-
-
-  //.then(executeOrder)
-  //.then(updateOrderStatus);
-}
+};
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////////
