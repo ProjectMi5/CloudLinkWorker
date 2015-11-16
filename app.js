@@ -18,6 +18,8 @@ var Worker = function(){
   this._queue = 0;         // number of queued orders in production
   this._orders = [];       // collection of all OrderSM to work on
 };
+var moment = require('moment');
+
 
 /**
  * compute which order is next
@@ -97,7 +99,7 @@ Worker.prototype.executeOrder = function(order){
     if(err){
       deferred.reject(err);
     } else {
-      deferred.resolve({status: 'ok'});
+      deferred.resolve(order);
     }
   });
   return deferred.promise;
@@ -118,9 +120,35 @@ Worker.prototype.setInProgressToOrder = function(order){
   return this.rest.updateOrderStatus(order.orderId, 'in progress').bind(this);
 };
 
-Worker.prototype.setAcceptedToOrder = function(order){
-  console.log('INFO: updating status order ', order.orderId, ' from "',order.status,'" to: "accepted"');
-  return this.rest.updateOrderStatus(order.orderId, 'accepted').bind(this);
+Worker.prototype.acceptOrder = function(order, timeUntilCompletion){
+  var update = {
+    orderId: order.orderId,
+    estimatedTimeOfCompletion: timeUntilCompletion,
+    status: 'accepted'
+  };
+  console.log('INFO: perform update:', update);
+  return this.rest.updateOrder(update).bind(this);
+};
+
+/**
+ * Compute time until completion
+ *
+ * nr_of_accepted_orders * 90s + 180s production = time until production
+ *
+ * Estimation that every order takes 90s.
+ * @param order
+ * @returns {*}
+ */
+Worker.prototype.computeTimeUntilCompletion = function(order){
+  var self = this;
+  return this.getAcceptedOrders()
+    .then(function(orders){
+      var timeUntilProduction = moment().add(orders.length * 90,'s');
+      var timeUntilCompletion = timeUntilProduction.add(180,'s');
+
+      var formattedTime = moment(timeUntilCompletion, 'YYYY-MM-DD[T]HH:mm:ss').format();
+      return new Promise.resolve([order, formattedTime]).bind(self);
+    });
 };
 
 /**
@@ -140,7 +168,12 @@ Worker.prototype.executeAcceptedOrders = function() {
       console.log('INFO: Next order will be:', order);
       return new Promise(function(res){res(order);}).bind(self); // continue the promise chain with the order
     })
-    .then(self.executeOrder)
+    //.then(self.executeOrder)
+    // Compute time for order
+    //.then(function(order){
+    //
+    //  return new Promise(function(res){res(order);}).bind(self);
+    //})
     .then(function() {
       console.log('INFO: order was executed');
       return self.setInProgressToOrder(currentOrder);
@@ -162,23 +195,22 @@ Worker.prototype.executeAcceptedOrders = function() {
  */
 Worker.prototype.acceptPendingOrders = function() {
   var self = this;
-  var currentOrder;
+
   return self.getPendingOrders()
     .then(self.manageIncomingOrdersArray)
     .then(self.computeNextOrder)
     .then(function(order){
-      currentOrder = order;
-      console.log('INFO: Next ordre to accept', order);
-      return new Promise(function(res){res(order);}).bind(self); // continue the promise chain with the order
+      // Debug output
+      console.log('INFO: Next order to accept', order);
+      // continue the promise chain with the order
+      return new Promise(function(res){res(order);}).bind(self);
     })
-    .then(function() {
-      console.log('INFO: set state to accepted');
-      return self.setAcceptedToOrder(currentOrder);
-    })
+    // Compute time until production
+    .then(self.computeTimeUntilCompletion)
+    .spread(self.acceptOrder)
     .then(function(){
-      console.log('INFO: order is now in accepted');
+      console.log('SUCCESS: order is now in accepted');
     })
-
     .catch(function(err){
       console.log('ERROR',err);
     });

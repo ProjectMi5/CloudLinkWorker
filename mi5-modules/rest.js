@@ -42,6 +42,7 @@ rest.prototype.getOrdersByStatus = function(status){
         body = JSON.parse(body);
         resolve(body);
       } catch (err){
+        console.log(err, body);
         reject('could not perform getOrdersByStatus, maybe server is not reached, or body is not json');
       }
     });
@@ -63,6 +64,29 @@ rest.prototype.updateOrderStatus = function(orderid, status){
         body = JSON.parse(body);
         resolve(body);
       } catch (err){
+        console.log(err, body);
+        reject('problems in JSON.parse, probably return is not JSON formatted');
+      }
+    });
+  });
+};
+
+rest.prototype.updateOrder = function(order){
+  var options = {
+    url:  urljoin(config.rest.host, config.rest.updateOrder),
+    rejectUnauthorized: false, // TODO certificate needs to be bundled correctly
+    form: {order: order},
+    auth: config.auth
+  };
+
+  return new Promise(function(resolve, reject){
+    request.post(options, function(err, res, body){
+      if(err) reject(err);
+      try {
+        body = JSON.parse(body);
+        resolve(body);
+      } catch (err){
+        console.log(err, body);
         reject('problems in JSON.parse, probably return is not JSON formatted');
       }
     });
@@ -84,6 +108,7 @@ rest.prototype.performOrder = function(){
         body = JSON.parse(body);
         resolve(body);
       } catch (err){
+        console.log(err, body);
         reject('problems in JSON.parse, probably return is not JSON formatted');
       }
     });
