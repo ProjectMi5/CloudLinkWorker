@@ -114,8 +114,13 @@ Worker.prototype.wait = function(){
 };
 
 Worker.prototype.setInProgressToOrder = function(order){
-  console.log('INFO: updating status order ', order.orderId, ' from "',order.status,'" to: in progress');
+  console.log('INFO: updating status order ', order.orderId, ' from "',order.status,'" to: "in progress"');
   return this.rest.updateOrderStatus(order.orderId, 'in progress').bind(this);
+};
+
+Worker.prototype.setAcceptedToOrder = function(order){
+  console.log('INFO: updating status order ', order.orderId, ' from "',order.status,'" to: "accepted"');
+  return this.rest.updateOrderStatus(order.orderId, 'accepted').bind(this);
 };
 
 /**
@@ -133,7 +138,7 @@ Worker.prototype.executeAcceptedOrders = function() {
     .then(function(order){
       currentOrder = order;
       console.log('INFO: Next order will be:', order);
-      return new Promise(function(res){res(order);}).bind(self);
+      return new Promise(function(res){res(order);}).bind(self); // continue the promise chain with the order
     })
     .then(self.executeOrder)
     .then(function() {
@@ -149,6 +154,40 @@ Worker.prototype.executeAcceptedOrders = function() {
     });
 };
 
+/**
+ * Accepted pending orders
+ * -----------------------
+ * Get every minute a complete list
+ * (in addition to mqtt, since it might be possible due to connection problems, that we miss some?)
+ */
+Worker.prototype.acceptPendingOrders = function() {
+  var self = this;
+  var currentOrder;
+  return self.getPendingOrders()
+    .then(self.manageIncomingOrdersArray)
+    .then(self.computeNextOrder)
+    .then(function(order){
+      currentOrder = order;
+      console.log('INFO: Next ordre to accept', order);
+      return new Promise(function(res){res(order);}).bind(self); // continue the promise chain with the order
+    })
+    .then(function() {
+      console.log('INFO: set state to accepted');
+      return self.setAcceptedToOrder(currentOrder);
+    })
+    .then(function(){
+      console.log('INFO: order is now in accepted');
+    })
+
+    .catch(function(err){
+      console.log('ERROR',err);
+    });
+};
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////////
+
 Worker.prototype.run = function(){
   var self = this;
   return self.executeAcceptedOrders()
@@ -159,36 +198,27 @@ Worker.prototype.run = function(){
     });
 };
 
+Worker.prototype.runAccept = function(){
+  var self = this;
+  return self.acceptPendingOrders()
+    .then(self.wait)
+    .then(function(){
+      console.log('INFO: resursive call to Worker.runAccept()');
+      return self.runAccept();
+    });
+};
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////////
 
 var CLW = new Worker(); // CloudLinkWorker
 CLW.run();
-
-// Perform an order:
-CLW.rest.performOrder()
-  .then(function(res){
-    console.log('order performed',res);
-  })
-  .catch(function(err){
-    console.log('performOrder ERR:',err);
-  });
+CLW.runAccept();
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////////
-
-/**
- * Accept orders
- * -----------------------
- * Get every minute a complete list
- */
-//setInterval(function(){
-//  rest.getOrdersByStatus('pending')
-//    .then(computeApprovalOrder)
-//    .then(updateOrderStatus);
-//}, 60*1000);
 
 /**
  * Listen to changes via MQTT
