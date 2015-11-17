@@ -35,7 +35,8 @@ Worker.prototype.computeNextOrder = function(){
 
   var orders = this._orders;
   if(_.isEmpty(orders)){
-    throw new Error('order list is empty - nothing to process');
+    deferred.reject('OrderListIsEmpty');
+    return deferred.promise;
   }
 
   // Sort by orderId first, so implicit order is given
@@ -95,7 +96,9 @@ Worker.prototype.executeOrder = function(order){
     TaskID : order.orderId,
   };
 
-  simpleRecipeInterface.setOrder(opcuaOrder, order.parameters, function(err){
+  var userparameters = _.map(order.parameters, function(val){ return {Value: val};});
+
+  simpleRecipeInterface.setOrder(opcuaOrder, userparameters, function(err){
     if(err){
       deferred.reject(err);
     } else {
@@ -106,7 +109,7 @@ Worker.prototype.executeOrder = function(order){
 };
 
 Worker.prototype.wait = function(){
-  console.log('INFO: wait 2s');
+  //console.log('INFO: wait 2s');
   var deferred = Promise.pending();
   deferred.promise.bind(this);
   setTimeout(function(){
@@ -168,12 +171,7 @@ Worker.prototype.executeAcceptedOrders = function() {
       console.log('INFO: Next order will be:', order);
       return new Promise(function(res){res(order);}).bind(self); // continue the promise chain with the order
     })
-    //.then(self.executeOrder)
-    // Compute time for order
-    //.then(function(order){
-    //
-    //  return new Promise(function(res){res(order);}).bind(self);
-    //})
+    .then(self.executeOrder)
     .then(function() {
       console.log('INFO: order was executed');
       return self.setInProgressToOrder(currentOrder);
@@ -181,9 +179,11 @@ Worker.prototype.executeAcceptedOrders = function() {
     .then(function(){
       console.log('INFO: order is now in progress');
     })
-
     .catch(function(err){
-      console.log('ERROR',err);
+      if(err == 'OrderListIsEmpty'){}
+      else {
+        console.log('ERROR',err);
+      }
     });
 };
 
@@ -212,7 +212,10 @@ Worker.prototype.acceptPendingOrders = function() {
       console.log('SUCCESS: order is now in accepted');
     })
     .catch(function(err){
-      console.log('ERROR',err);
+      if(err == 'OrderListIsEmpty'){}
+      else {
+        console.log('ERROR',err);
+      }
     });
 };
 
@@ -225,7 +228,6 @@ Worker.prototype.run = function(){
   return self.executeAcceptedOrders()
     .then(self.wait)
     .then(function(){
-      console.log('INFO: resursive call to Worker.run()');
       return self.run();
     });
 };
@@ -235,7 +237,6 @@ Worker.prototype.runAccept = function(){
   return self.acceptPendingOrders()
     .then(self.wait)
     .then(function(){
-      console.log('INFO: resursive call to Worker.runAccept()');
       return self.runAccept();
     });
 };
