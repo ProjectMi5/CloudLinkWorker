@@ -75,7 +75,7 @@ rest.prototype.updateOrder = function(order){
   var options = {
     url:  urljoin(config.rest.host, config.rest.updateOrder),
     rejectUnauthorized: false, // TODO certificate needs to be bundled correctly
-    form: {order: order},
+    form: {order: JSON.stringify(order)},
     auth: config.auth
   };
 

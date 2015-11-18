@@ -100,6 +100,7 @@ Worker.prototype.executeOrder = function(order){
 
   simpleRecipeInterface.setOrder(opcuaOrder, userparameters, function(err){
     if(err){
+      console.log('setOrder Err', err);
       deferred.reject(err);
     } else {
       deferred.resolve(order);
@@ -119,7 +120,7 @@ Worker.prototype.wait = function(){
 };
 
 Worker.prototype.setInProgressToOrder = function(order){
-  console.log('INFO: updating status order ', order.orderId, ' from "',order.status,'" to: "in progress"');
+  console.log('INFO: updating status order ', order.orderId, ' from "'+order.status+'" to: "in progress"');
   return this.rest.updateOrderStatus(order.orderId, 'in progress').bind(this);
 };
 
