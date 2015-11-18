@@ -83,11 +83,11 @@ rest.prototype.updateOrder = function(order){
     request.post(options, function(err, res, body){
       if(err) reject(err);
       try {
-        body = JSON.parse(body);
+        body = JSON.stringify(body);
         resolve(body);
       } catch (err){
         console.log(err, body);
-        reject('problems in JSON.parse, probably return is not JSON formatted');
+        reject('problems in JSON.stringify, probably return is not JSON formatted');
       }
     });
   });
