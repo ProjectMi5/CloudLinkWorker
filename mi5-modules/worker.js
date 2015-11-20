@@ -44,18 +44,20 @@ Worker.prototype.computeNextOrder = function(){
   orders = _.sortBy(orders, 'orderId');
   orders = _.sortBy(orders, 'priority');
 
-  // Look for eu orders and return first element
+  // Sorting: Generate array for eu orders
   var euOrders = _.filter(orders, function(order){
     if(order.marketPlaceId == 'eu'){
       return true; //sorting function
     }
   });
+
+  // Return a eu order if there is one
   if(!_.isEmpty(euOrders)){
     deferred.resolve(euOrders.shift()); // return top element
     return deferred.promise;
   }
 
-  // Get highest priority
+  // Otherwise: Get highest priority but never produce centigrade orders directly
   if(!_.isEmpty(orders)){
     deferred.resolve(orders.shift()); // return top element
     return deferred.promise;
@@ -68,6 +70,9 @@ Worker.prototype.getPendingOrders = function(){
 
 Worker.prototype.getAcceptedOrders = function(){
   return this.rest.getOrdersByStatus('accepted').bind(this);
+};
+Worker.prototype.getInProgressOrders = function(){
+  return this.rest.getOrdersByStatus('in progress').bind(this);
 };
 
 Worker.prototype.manageIncomingOrdersArray = function(orders){
@@ -146,12 +151,15 @@ Worker.prototype.acceptOrder = function(order, timeUntilCompletion){
  */
 Worker.prototype.computeTimeUntilCompletion = function(order){
   var self = this;
-  return this.getAcceptedOrders()
+  return this.getInProgressOrders()
     .then(function(orders){
-      var timeUntilProduction = moment().add(orders.length * 90,'s');
-      var timeUntilCompletion = timeUntilProduction.add(180,'s');
+      var timeUntilCompletion = moment().add(orders.length * 2,'m'); // 2 min for every order that is in production
+      timeUntilCompletion = timeUntilCompletion.add(3,'m'); // 3 min base delay
 
-      var formattedTime = moment(timeUntilCompletion, 'YYYY-MM-DD[T]HH:mm:ss').format();
+      // Orders from centigrade will have a 30' delay (since people need to walk over)
+      timeUntilCompletion = timeUntilCompletion.add(30,'m');
+
+      var formattedTime = moment(timeUntilCompletion, self.config.rest.dateFormat).format();
       return new Promise.resolve([order, formattedTime]).bind(self);
     });
 };

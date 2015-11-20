@@ -18,7 +18,7 @@ Worker.prototype.executeAcceptedOrders = function() {
     .then(function(order){
       currentOrder = order;
       console.log('INFO: Next order will be:', order);
-      return new Promise(function(res){res(order);}).bind(self); // continue the promise chain with the order
+      return order;
     })
     .then(self.executeOrder)
     .then(function() {
@@ -52,7 +52,7 @@ Worker.prototype.acceptPendingOrders = function() {
       // Debug output
       console.log('INFO: Next order to accept', order);
       // continue the promise chain with the order
-      return new Promise(function(res){res(order);}).bind(self);
+      return order;
     })
     // Compute time until production
     .then(self.computeTimeUntilCompletion)
@@ -62,6 +62,9 @@ Worker.prototype.acceptPendingOrders = function() {
     })
     .catch(function(err){
       if(err == 'OrderListIsEmpty'){}
+      if(err == 'TaskListIsFull'){
+        console.log('we only accept 3 orders simultaneously');
+      }
       else {
         console.log('ERROR',err);
       }
@@ -75,7 +78,7 @@ Worker.prototype.acceptPendingOrders = function() {
 Worker.prototype.run = function(){
   var self = this;
   return self.executeAcceptedOrders()
-    .then(self.wait)
+    .delay(3000)
     .then(function(){
       return self.run();
     });
@@ -84,7 +87,7 @@ Worker.prototype.run = function(){
 Worker.prototype.runAccept = function(){
   var self = this;
   return self.acceptPendingOrders()
-    .then(self.wait)
+    .delay(3000)
     .then(function(){
       return self.runAccept();
     });
@@ -104,6 +107,7 @@ CLW.runAccept();
 
 /**
  * Listen to changes via MQTT
+ * not yet implemented
  */
 //mqtt.on('newOrder', function(topic, message){
 //  // if order pending:

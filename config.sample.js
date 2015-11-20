@@ -16,6 +16,7 @@ if(true) {
   config.rest.getOrdersByStatus = 'getOrdersByStatus';
   config.rest.updateOrderStatus = 'updateOrderStatus';
   config.rest.updateOrder = 'updateOrder';
+  config.rest.dateFormat = 'YYYY-MM-DD[T]HH:mm:ss';
 
   // OPC UA
   config.OPCUAOrder = 'opc.tcp://x.y.z.a:4840/';
