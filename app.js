@@ -61,8 +61,9 @@ Worker.prototype.acceptPendingOrders = function() {
       console.log('SUCCESS: order is now in accepted');
     })
     .catch(function(err){
-      if(err == 'OrderListIsEmpty'){}
-      if(err == 'TaskListIsFull'){
+      if(err == 'OrderListIsEmpty'){
+
+      } else if(err == 'TaskListIsFull'){
         console.log('we only accept 3 orders simultaneously');
       }
       else {
@@ -98,7 +99,12 @@ Worker.prototype.runAccept = function(){
 ///////////////////////////////////////////////////////////////////////////////////////////////////////
 
 var CLW = new Worker(); // CloudLinkWorker
+console.log('CloudLinkWorker running');
+
+console.log('* executing orders');
 CLW.run();
+
+console.log('* accepting all orders that are in progress');
 CLW.runAccept();
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////
