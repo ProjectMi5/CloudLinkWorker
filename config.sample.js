@@ -22,14 +22,22 @@ if(true) {
   config.OPCUAOrder = 'opc.tcp://x.y.z.a:4840/';
 }
 
-// Run on localhost
-if(true){
+// Run all on localhost
+if(process.env.TEST){
+  console.log('TEST set');
+  config.auth = {};
   config.auth.user = 'foo';
   config.auth.password = 'bar';
 
   config.rest.host = 'http://localhost:3001';
 
-  config.OPCUAOrder = 'opc.tcp://localhost:4840/';
+  config.OPCUAOrder = 'opc.tcp://localhost:4334/';
+}
+
+// only recipe module mock
+if(process.env.USENODEMODULE){
+  console.log('USENODEMODULE set');
+  config.OPCUAOrder = 'opc.tcp://localhost:4334/';
 }
 
 module.exports = config;

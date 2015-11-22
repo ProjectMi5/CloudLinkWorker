@@ -1,13 +1,15 @@
 {
   "name": "cloudlink-worker",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "description": "A worker program that is triggering orders on showcase mi5 according to the Mi5-CloudLink database",
   "main": "app.js",
   "directories": {
     "test": "test"
   },
   "scripts": {
-    "test": "grunt"
+    "test": "grunt",
+    "useLocalEnvironment": "set TEST=1 && node app.js",
+    "useNodeModule": "set USENODEMODULE=1 && node app.js"
   },
   "keywords": [
     "mi5"
