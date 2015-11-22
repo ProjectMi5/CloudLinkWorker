@@ -99,7 +99,7 @@ Worker.prototype.executeOrder = function(order){
   var opcuaOrder = {
     Pending : true,
     RecipeID : order.recipeId,
-    TaskID : order.orderId,
+    TaskID : order.orderId
   };
 
   var userparameters = _.map(order.parameters, function(val){ return {Value: val};});
@@ -153,14 +153,30 @@ Worker.prototype.computeTimeUntilCompletion = function(order){
   var self = this;
   return this.getInProgressOrders()
     .then(function(orders){
-      var timeUntilCompletion = moment().add(orders.length * 2,'m'); // 2 min for every order that is in production
-      timeUntilCompletion = timeUntilCompletion.add(3,'m'); // 3 min base delay
+      var timeUntilCompletion
+      if(order.marketPlaceId == 'eu'){
+        timeUntilCompletion = moment().add(3,'m').utc().format();
+      }
+      else if (order.marketPlaceId == 'itq') {
+        timeUntilCompletion = moment().add(orders.length * 2,'m'); // 2 min for every order that is in production
+        timeUntilCompletion = timeUntilCompletion.add(3,'m'); // 3 min base delay
 
-      // Orders from centigrade will have a 30' delay (since people need to walk over)
-      timeUntilCompletion = timeUntilCompletion.add(30,'m');
+        timeUntilCompletion = timeUntilCompletion.utc().format();
+      }
+      else if (order.marketPlaceId == 'centigrade') {
+        timeUntilCompletion = moment().add(orders.length * 2,'m'); // 2 min for every order that is in production
+        timeUntilCompletion = timeUntilCompletion.add(3,'m'); // 3 min base delay
 
-      var formattedTime = moment(timeUntilCompletion, self.config.rest.dateFormat).format();
-      return new Promise.resolve([order, formattedTime]).bind(self);
+        // Orders from centigrade will have a 30' delay (since people need to walk over)
+        timeUntilCompletion = timeUntilCompletion.add(30,'m');
+
+        timeUntilCompletion = timeUntilCompletion.utc().format();
+      }
+      else {
+        // should not be here
+        timeUntilCompletion = moment().add(1, 'd').utc().format();
+      }
+      return new Promise.resolve([order, timeUntilCompletion]).bind(self);
     });
 };
 

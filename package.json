@@ -7,6 +7,7 @@
     "test": "test"
   },
   "scripts": {
+    "start": "node app.js",
     "test": "grunt",
     "useLocalEnvironment": "set TEST=1 && node app.js",
     "useNodeModule": "set USENODEMODULE=1 && node app.js"

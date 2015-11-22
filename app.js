@@ -17,7 +17,10 @@ Worker.prototype.executeAcceptedOrders = function() {
     .then(self.computeNextOrder)
     .then(function(order){
       currentOrder = order;
-      console.log('INFO: Next order will be:', order);
+      console.log('INFO: execute Accepted Orders Next order will be:', order);
+      if(order.marketPlaceId == 'centigrade'){
+        throw new Error('CentigradeOrder');
+      }
       return order;
     })
     .then(self.executeOrder)
@@ -29,7 +32,12 @@ Worker.prototype.executeAcceptedOrders = function() {
       console.log('INFO: order is now in progress');
     })
     .catch(function(err){
-      if(err == 'OrderListIsEmpty'){}
+      if(err == 'OrderListIsEmpty'){
+        // nothing
+      } else if (err.Error.CentigradeOrder){
+        // do not execute centigrade orders
+        console.log('centigrade order will not be processed');
+      }
       else {
         console.log('ERROR',err);
       }
