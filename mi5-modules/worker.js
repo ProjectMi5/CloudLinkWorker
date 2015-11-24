@@ -1,5 +1,7 @@
 var _ = require('underscore');
 var Promise = require('bluebird');
+var MI5REST = require('cloudlinkrest');
+
 
 /**
  * Worker instance
@@ -12,7 +14,8 @@ var Promise = require('bluebird');
  */
 var Worker = function(){
   this.config = require('./../config.js');
-  this.rest = require('./rest');
+  this.rest = new MI5REST(this.config.rest.host, this.config.auth.user, this.config.auth.password);
+
 
   this._simultaneous = 3;  // number of orders that should be produced simultaneously
   this._queue = 0;         // number of queued orders in production
@@ -75,6 +78,22 @@ Worker.prototype.getInProgressOrders = function(){
   return this.rest.getOrdersByStatus('in progress').bind(this);
 };
 
+Worker.prototype.filterForCentigradeOrders = function(orders) {
+  if (!_.isArray(orders)) {
+    throw new Error('orders is not an array');
+  }
+
+  return new Promise(function(res){ res(_.where(orders, {marketPlaceId: 'centigrade'}))});
+};
+
+Worker.prototype.selectOneOrderByIncomingOrder = function(orders){
+  return new Promise(function(res){ res(orders.pop()); });
+};
+
+Worker.prototype.rejectOrder = function(order){
+  return this.rest.updateOrderStatus(order.orderId, failure).bind(this);
+}
+
 Worker.prototype.manageIncomingOrdersArray = function(orders){
   if(!_.isArray(orders)){
     throw new Error('orders is not an array');
@@ -129,6 +148,11 @@ Worker.prototype.setInProgressToOrder = function(order){
   console.log('INFO: updating status order ', order.orderId, ' from "'+order.status+'" to: "in progress"');
   return this.rest.updateOrderStatus(order.orderId, 'in progress').bind(this);
 };
+
+Worker.prototype.setDoneToOrder = function(order){
+  console.log('INFO: set "done" to ', order.orderId);
+  return this.rest.updateOrderStatus(order.orderId, 'done').bind(this);
+}
 
 Worker.prototype.acceptOrder = function(order, timeUntilCompletion){
   var update = {

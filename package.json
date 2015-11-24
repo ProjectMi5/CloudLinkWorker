@@ -26,6 +26,7 @@
   "dependencies": {
     "async": "^1.5.0",
     "bluebird": "^3.0.5",
+    "cloudlinkrest": "git://github.com/ProjectMi5/CloudLinkRest.git",
     "javascript-state-machine": "^2.3.5",
     "md5": "^2.0.0",
     "moment": "^2.10.6",

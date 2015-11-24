@@ -17,10 +17,11 @@ Worker.prototype.executeAcceptedOrders = function() {
     .then(self.computeNextOrder)
     .then(function(order){
       currentOrder = order;
-      console.log('INFO: execute Accepted Orders Next order will be:', order);
       if(order.marketPlaceId == 'centigrade'){
+        console.log('INFO: we do not execute centigrade right away. Set Status to "done" manually and execute on site');
         throw new Error('CentigradeOrder');
       }
+      console.log('INFO: execute Accepted Orders Next order will be:', order);
       return order;
     })
     .then(self.executeOrder)
@@ -32,6 +33,7 @@ Worker.prototype.executeAcceptedOrders = function() {
       console.log('INFO: order is now in progress');
     })
     .catch(function(err){
+      console.log('some error: ', err);
       if(err == 'OrderListIsEmpty'){
         // nothing
       } else if (err.Error.CentigradeOrder){
@@ -80,6 +82,33 @@ Worker.prototype.acceptPendingOrders = function() {
     });
 };
 
+Worker.prototype.executeCentigradeOrdersInProgress = function() {
+  var self = this;
+  return self.getInProgressOrders()
+    .then(self.filterForCentigradeOrders)
+    .then(self.selectOneOrderByIncomingOrder)
+    .then(self.executeOrder)
+    .then(function(order) {
+      console.log('INFO: a centigrade order was executed');
+      return self.setDoneToOrder(order);
+    })
+    .then(function(){
+      console.log('INFO: centigrade order is now in progress');
+    })
+    .catch('TypeError', function(e){
+      console.log('juhu typeerror');
+    })
+    .catch(function(err){
+      if(err == 'OrderListIsEmpty'){
+        // nothing
+      } else {
+
+        console.log('ERROR',err);
+      }
+    });
+};
+
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -102,6 +131,15 @@ Worker.prototype.runAccept = function(){
     });
 };
 
+Worker.prototype.runCentigrade = function(){
+  var self = this;
+  return self.executeCentigradeOrdersInProgress()
+    .delay(3000)
+    .then(function(){
+      return self.runCentigrade();
+    });
+};
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -114,6 +152,9 @@ CLW.run();
 
 console.log('* accepting all orders that are in progress');
 CLW.runAccept();
+
+console.log('* execute manulay set to "in progress" centigrade orders');
+//CLW.runCentigrade();
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////////
