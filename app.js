@@ -27,7 +27,7 @@ Worker.prototype.accept = function(){
             console.log('error accepting orders: ', err);
           });
       }
-      else if (filteredOrders.length>0){
+      else if (filteredOrders.length<=0){
           console.log("No orders to accept... waiting");
           promise = Promise.resolve();
       }
@@ -50,7 +50,6 @@ Worker.prototype.accept = function(){
 
 Worker.prototype.execute = function(){
   var self = this;
-
   return self.getAcceptedOrders()
     .then(self.selectOneOrderByIncomingOrder)
     .then(function(order){

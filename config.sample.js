@@ -23,7 +23,7 @@ if(true) {
 
   // Order processing rules
   config.processing = {};
-  config.processing.marketplace = ['eu','b'];
+  config.processing.marketplace = ['mi5','itq'];
   config.processing.maxOrdersProcessing =  500;
 }
 
