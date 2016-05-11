@@ -20,6 +20,11 @@ if(true) {
 
   // OPC UA
   config.OPCUAOrder = 'opc.tcp://x.y.z.a:4840/';
+
+  // Order processing rules
+  config.processing = {};
+  config.processing.marketplace = ['eu','b'];
+  config.processing.maxOrdersProcessing =  500;
 }
 
 // Run all on localhost
