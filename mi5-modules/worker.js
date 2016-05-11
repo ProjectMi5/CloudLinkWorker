@@ -37,7 +37,6 @@ Worker.prototype.getInProgressOrders = function(){
  */
 Worker.prototype.filterOrdersAccordingConfig = function(orders){
   var marketplace = this.config.processing.marketplace;
-  console.log(orders);
   var deferred = Promise.pending();
   deferred.promise.bind(this);
 
@@ -45,10 +44,8 @@ Worker.prototype.filterOrdersAccordingConfig = function(orders){
   var orders_filtered = _.filter(orders, function(order){
       return _.contains(marketplace,order.marketPlaceId)
   });
-  if (orders_filtered.length>0)
-      deferred.resolve(orders_filtered);
-  else
-      deferred.reject("No order to accept");
+
+  deferred.resolve(orders_filtered);
   return deferred.promise;
 };
 

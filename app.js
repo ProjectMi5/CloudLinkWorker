@@ -7,34 +7,46 @@ Worker.prototype.accept = function(){
   var self = this;
   var maxOrdersProcessing = this.config.processing.maxOrdersProcessing;
 
-  return self.getInProgressOrders()
-      .then(function(ordersInProgress) {
-        var promise;
-        if (ordersInProgress.length < maxOrdersProcessing) {
-            console.log("Accepting one order.");
-              promise = self.getPendingOrders()
-              .then(self.filterOrdersAccordingConfig)
-              .then(self.selectOneOrderByIncomingOrder)
-              .then(self.computeTimeUntilCompletion)
-              .spread(self.acceptOrder)
-              .catch(TypeError, function (err) {
-                console.log('catchedTypeError', err);
-              })
-              .catch(function (err) {
-                console.log('error accepting orders: ', err);
-              });
-        }
-        else {
-          console.log("Orders in queue: " + ordersInProgress.length + " ... waiting");
+  return Promise.all([self.getInProgressOrders(), 
+        self.getPendingOrders()
+        .then(self.filterOrdersAccordingConfig)])
+  .spread(function(ordersInProgress,filteredOrders){
+	  var promise;
+      if (ordersInProgress.length < maxOrdersProcessing && filteredOrders.length>0) {
+    	  
+    	  console.log("Accepting one order.");
+          promise = self.getPendingOrders()
+          
+          .then(self.selectOneOrderByIncomingOrder)
+          .then(self.computeTimeUntilCompletion)
+          .spread(self.acceptOrder)
+          .catch(TypeError, function (err) {
+            console.log('catchedTypeError', err);
+          })
+          .catch(function (err) {
+            console.log('error accepting orders: ', err);
+          });
+      }
+      else if (filteredOrders.length>0){
+          console.log("No orders to accept... waiting");
           promise = Promise.resolve();
-        }
+      }
+      else {
+          console.log("Already "+ ordersInProgress.length +" orders in progress... waiting");
+          promise = Promise.resolve();
+      }
+      
         return promise;
-      })
-      .delay(1000)
-      .then(function(){
-        return self.accept();
-      });
-};
+  }) // spread
+  .delay(1000)
+  .then(function(){
+    return self.accept();
+  })
+  .catch(function(err){
+	  console.log("Error in accept: " +err);
+  });
+}; // accept
+
 
 Worker.prototype.execute = function(){
   var self = this;
