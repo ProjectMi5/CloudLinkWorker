@@ -24,7 +24,8 @@ if(true) {
   // Order processing rules
   config.processing = {};
   config.processing.marketplace = ['mi5','itq'];
-  config.processing.maxOrdersProcessing =  500;
+  config.processing.maxOrdersProcessing =  2;
+  config.processing.blacklistOrderIds = []; // Orders with these orderIds will be ignored by the worker
 }
 
 // Run all on localhost

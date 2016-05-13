@@ -20,15 +20,40 @@ var Worker = function(){
 module.exports = Worker;
 var moment = require('moment');
 
+/**
+ * Return pending orders
+ * Note: filtering pending orders for duplicates wont solve the problem, if only one of the duplicates is pending.
+ */
 Worker.prototype.getPendingOrders = function(){
-  return this.rest.getOrdersByStatus('pending').bind(this);
+    var promise = this.rest.getOrdersByStatus("pending").bind(this);
+    var blacklistOrderIds = this.config.processing.blacklistOrderIds;
+    return promise.then(function(orders)
+		{
+	    	return _.filter(orders,function(obj){
+	    		return !_.contains(blacklistOrderIds,obj.orderId);
+	    	});
+		});
 };
 
 Worker.prototype.getAcceptedOrders = function(){
-  return this.rest.getOrdersByStatus('accepted').bind(this);
+    var promise = this.rest.getOrdersByStatus("accepted").bind(this);
+    var blacklistOrderIds = this.config.processing.blacklistOrderIds;
+    return promise.then(function(orders)
+    		{
+    	    	return _.filter(orders,function(obj){
+    	    		return !_.contains(blacklistOrderIds,obj.orderId);
+    	    	});
+    		});
 };
+
 Worker.prototype.getInProgressOrders = function(){
-  return this.rest.getOrdersByStatus('in progress').bind(this);
+    var blacklistOrderIds = this.config.processing.blacklistOrderIds;
+    return this.rest.getOrdersByStatus("in progress").bind(this)
+	    .then(function(orders){
+	    	return new Promise.resolve(_.filter(orders,function(obj){
+	    		return !_.contains(blacklistOrderIds,obj.orderId);
+	    	}));
+		});  
 };
 
 /**
