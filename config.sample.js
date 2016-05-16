@@ -24,6 +24,7 @@ if(true) {
   // Order processing rules
   config.processing = {};
   config.processing.marketplace = ['mi5','itq'];
+  config.processing.acceptOrdersSince = "2016-05-16T16:45:48CST";
   config.processing.maxOrdersProcessing =  2;
   config.processing.blacklistOrderIds = []; // Orders with these orderIds will be ignored by the worker
 }

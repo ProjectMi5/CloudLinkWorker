@@ -1,6 +1,7 @@
 var _ = require('underscore');
 var Promise = require('bluebird');
 var MI5REST = require('cloudlinkrest');
+var moment = require('moment');
 
 /**
  * Worker instance
@@ -21,8 +22,7 @@ module.exports = Worker;
 var moment = require('moment');
 
 /**
- * Return pending orders
- * Note: filtering pending orders for duplicates wont solve the problem, if only one of the duplicates is pending.
+ * Return pending orders, with blacklisted orderIds (see config) removed
  */
 Worker.prototype.getPendingOrders = function(){
     var promise = this.rest.getOrdersByStatus("pending").bind(this);
@@ -35,6 +35,9 @@ Worker.prototype.getPendingOrders = function(){
 		});
 };
 
+/**
+ * Return accepted orders, with blacklisted orderIds (see config) removed
+ */
 Worker.prototype.getAcceptedOrders = function(){
     var promise = this.rest.getOrdersByStatus("accepted").bind(this);
     var blacklistOrderIds = this.config.processing.blacklistOrderIds;
@@ -46,6 +49,9 @@ Worker.prototype.getAcceptedOrders = function(){
     		});
 };
 
+/**
+ * Return orders in progress, with blacklisted orderIds (see config) removed
+ */
 Worker.prototype.getInProgressOrders = function(){
     var blacklistOrderIds = this.config.processing.blacklistOrderIds;
     return this.rest.getOrdersByStatus("in progress").bind(this)
@@ -62,12 +68,15 @@ Worker.prototype.getInProgressOrders = function(){
  */
 Worker.prototype.filterOrdersAccordingConfig = function(orders){
   var marketplace = this.config.processing.marketplace;
+  var acceptOrdersSince = this.config.processing.acceptOrdersSince;
   var deferred = Promise.pending();
   deferred.promise.bind(this);
 
   // Filter orders according to marketplace
   var orders_filtered = _.filter(orders, function(order){
-      return _.contains(marketplace,order.marketPlaceId)
+      var acceptedMarketplace =  _.contains(marketplace,order.marketPlaceId);
+      var earlyEnough = moment(order.date).isAfter(acceptOrdersSince,'second');
+      return acceptedMarketplace && earlyEnough;  
   });
 
   deferred.resolve(orders_filtered);
