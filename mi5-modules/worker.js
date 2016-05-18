@@ -19,7 +19,6 @@ var Worker = function(){
   this._orders = [];       // collection of all OrderSM to work on
 };
 module.exports = Worker;
-var moment = require('moment');
 
 /**
  * Return pending orders, with blacklisted orderIds (see config) removed
@@ -69,14 +68,15 @@ Worker.prototype.getInProgressOrders = function(){
 Worker.prototype.filterOrdersAccordingConfig = function(orders){
   var marketplace = this.config.processing.marketplace;
   var acceptOrdersSince = this.config.processing.acceptOrdersSince;
+  var dateFormat = this.config.rest.dateFormat;
   var deferred = Promise.pending();
   deferred.promise.bind(this);
 
   // Filter orders according to marketplace
   var orders_filtered = _.filter(orders, function(order){
       var acceptedMarketplace =  _.contains(marketplace,order.marketPlaceId);
-      var earlyEnough = moment(order.date).isAfter(acceptOrdersSince,'second');
-      return acceptedMarketplace && earlyEnough;  
+      var acceptedDate = moment(order.date,dateFormat).isAfter(acceptOrdersSince,'second');
+      return acceptedMarketplace && acceptedDate;  
   });
 
   deferred.resolve(orders_filtered);

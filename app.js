@@ -38,12 +38,12 @@ Worker.prototype.accept = function(){
       
         return promise;
   }) // spread
+  .catch(function(err){
+	  console.log("Error in accept: " +err);
+  })
   .delay(1000)
   .then(function(){
     return self.accept();
-  })
-  .catch(function(err){
-	  console.log("Error in accept: " +err);
   });
 }; // accept
 
