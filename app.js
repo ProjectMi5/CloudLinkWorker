@@ -5,7 +5,6 @@ var Worker = require('./mi5-modules/worker');
 
 Worker.prototype.accept = function(){
   var self = this;
-  var maxOrdersProcessing = this.config.processing.maxOrdersProcessing;
 
   return Promise.all([self.getInProgressOrders(),
                       self.getAcceptedOrders(),
@@ -13,7 +12,7 @@ Worker.prototype.accept = function(){
                       .then(self.filterOrdersAccordingConfig)])
                   .spread(function(ordersInProgress,acceptedOrders,filteredOrders){
 	  var promise;
-      if ( (ordersInProgress.length + acceptedOrders.length) < maxOrdersProcessing && filteredOrders.length>0){          	  
+      if (filteredOrders.length>0){ //(ordersInProgress.length + acceptedOrders.length) < maxOrdersProcessing && filteredOrders.length>0){          	  
     	  console.log("Accepting one order.");
           promise = self.getPendingOrders() 
     	  .then(self.filterOrdersAccordingConfig)
@@ -27,12 +26,8 @@ Worker.prototype.accept = function(){
             console.log('error accepting orders: ', err);
           });
       }
-      else if (filteredOrders.length<=0){
+      else{
           console.log("No orders to accept... waiting");
-          promise = Promise.resolve();
-      }
-      else {
-          console.log("Already "+ ordersInProgress.length +" orders accepted or in progress... waiting");
           promise = Promise.resolve();
       }
       
@@ -49,14 +44,18 @@ Worker.prototype.accept = function(){
 
 
 Worker.prototype.execute = function(){
-	  var self = this;
-	  return self.getAcceptedOrders()
-	    .then(function(orders){
+	var self = this;
+	var maxOrdersProcessing = this.config.processing.maxOrdersProcessing;
+
+	return Promise.all([self.getInProgressOrders(),
+	                    self.getAcceptedOrders()])
+	    .spread(function(ordersInProgress,acceptedOrders){
 	        var promise;
-	        if (orders.length>0){
+	        if (acceptedOrders.length>0 && ordersInProgress.length<maxOrdersProcessing){          	  
 	            // Execute order
-	            promise = self.selectOneOrderByIncomingOrder(orders)
+	            promise = self.selectOneOrderByIncomingOrder(acceptedOrders)
 	            .then(function(order){
+	            	console.log("Setting order " + order.orderId + " in progress.");
 	                return Promise.all([
 	                self.setInProgressToOrder(order),
 	                self.executeOrder(order)]);
@@ -65,7 +64,11 @@ Worker.prototype.execute = function(){
 	                console.log('afterSetInProgress and after execute:', results);
 	            });
 	        }
-	        else{
+	        else if (acceptedOrders.length>0){
+	        	console.log("Already " + ordersInProgress.length + " orders in progress... waiting");
+	        	promise = Promise.resolve();
+	        }
+	        else {
 	            // No order to be executed
 	            console.log("No order to be executed... waiting");
 	            promise = Promise.resolve();
