@@ -171,20 +171,30 @@ Worker.prototype.acceptOrder = function(order, timeUntilCompletion){
  */
 Worker.prototype.computeTimeUntilCompletion = function(order){
   var self = this;
-  return this.getInProgressOrders()
-    .then(function(orders){
-      var timeUntilCompletion
+  
+  /*
+  Promise.all([self.getInProgressOrders(),
+               self.getAcceptedOrders(),
+               self.getPendingOrders()
+               .then(self.filterOrdersAccordingConfig)])
+           .spread(function(ordersInProgress,acceptedOrders,filteredOrders){
+  */
+  
+  return Promise.all([this.getInProgressOrders(),this.getAcceptedOrders()])
+    .spread(function(inProgressOrders,acceptedOrders){
+      var timeUntilCompletion;
+      var numOrders = inProgressOrders.length + acceptedOrders.length;
       if(order.marketPlaceId == 'eu'){
         timeUntilCompletion = moment().add(3,'m').utc().format();
       }
       else if (order.marketPlaceId == 'itq') {
-        timeUntilCompletion = moment().add(orders.length * 2,'m'); // 2 min for every order that is in production
+        timeUntilCompletion = moment().add(numOrders * 2,'m'); // 2 min for every order that is in production
         timeUntilCompletion = timeUntilCompletion.add(3,'m'); // 3 min base delay
 
         timeUntilCompletion = timeUntilCompletion.utc().format();
       }
       else if (order.marketPlaceId == 'centigrade') {
-        timeUntilCompletion = moment().add(orders.length * 2,'m'); // 2 min for every order that is in production
+        timeUntilCompletion = moment().add(numOrders* 2,'m'); // 2 min for every order that is in production
         timeUntilCompletion = timeUntilCompletion.add(3,'m'); // 3 min base delay
 
         // Orders from centigrade will have a 30' delay (since people need to walk over)
