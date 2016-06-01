@@ -1,7 +1,7 @@
 var _ = require('underscore');
 var Promise = require('bluebird');
 var MI5REST = require('cloudlinkrest');
-
+var moment = require('moment');
 
 /**
  * Worker instance
@@ -19,18 +19,70 @@ var Worker = function(){
   this._orders = [];       // collection of all OrderSM to work on
 };
 module.exports = Worker;
-var moment = require('moment');
 
+/**
+ * Return pending orders, with blacklisted orderIds (see config) removed
+ */
 Worker.prototype.getPendingOrders = function(){
-  return this.rest.getOrdersByStatus('pending').bind(this);
+    var promise = this.rest.getOrdersByStatus("pending").bind(this);
+    var blacklistOrderIds = this.config.processing.blacklistOrderIds;
+    return promise.then(function(orders)
+		{
+	    	return _.filter(orders,function(obj){
+	    		return !_.contains(blacklistOrderIds,obj.orderId);
+	    	});
+		});
 };
 
+/**
+ * Return accepted orders, with blacklisted orderIds (see config) removed
+ */
 Worker.prototype.getAcceptedOrders = function(){
-  return this.rest.getOrdersByStatus('accepted').bind(this);
+    var promise = this.rest.getOrdersByStatus("accepted").bind(this);
+    var blacklistOrderIds = this.config.processing.blacklistOrderIds;
+    return promise.then(function(orders)
+    		{
+    	    	return _.filter(orders,function(obj){
+    	    		return !_.contains(blacklistOrderIds,obj.orderId);
+    	    	});
+    		});
 };
+
+/**
+ * Return orders in progress, with blacklisted orderIds (see config) removed
+ */
 Worker.prototype.getInProgressOrders = function(){
-  return this.rest.getOrdersByStatus('in progress').bind(this);
+    var blacklistOrderIds = this.config.processing.blacklistOrderIds;
+    return this.rest.getOrdersByStatus("in progress").bind(this)
+	    .then(function(orders){
+	    	return new Promise.resolve(_.filter(orders,function(obj){
+	    		return !_.contains(blacklistOrderIds,obj.orderId);
+	    	}));
+		});  
 };
+
+/**
+ * Returns orders to be processed filtered according to the config file (config.processing)
+ * @param orders {JSON} Order array
+ */
+Worker.prototype.filterOrdersAccordingConfig = function(orders){
+  var marketplace = this.config.processing.marketplace;
+  var acceptOrdersSince = this.config.processing.acceptOrdersSince;
+  var dateFormat = this.config.rest.dateFormat;
+  var deferred = Promise.pending();
+  deferred.promise.bind(this);
+
+  // Filter orders according to marketplace
+  var orders_filtered = _.filter(orders, function(order){
+      var acceptedMarketplace =  _.contains(marketplace,order.marketPlaceId);
+      var acceptedDate = moment(order.date,dateFormat).isAfter(acceptOrdersSince,'second');
+      return acceptedMarketplace && acceptedDate;  
+  });
+
+  deferred.resolve(orders_filtered);
+  return deferred.promise;
+};
+
 
 Worker.prototype.filterForCentigradeOrders = function(orders) {
   if (!_.isArray(orders)) {
@@ -119,20 +171,30 @@ Worker.prototype.acceptOrder = function(order, timeUntilCompletion){
  */
 Worker.prototype.computeTimeUntilCompletion = function(order){
   var self = this;
-  return this.getInProgressOrders()
-    .then(function(orders){
-      var timeUntilCompletion
+  
+  /*
+  Promise.all([self.getInProgressOrders(),
+               self.getAcceptedOrders(),
+               self.getPendingOrders()
+               .then(self.filterOrdersAccordingConfig)])
+           .spread(function(ordersInProgress,acceptedOrders,filteredOrders){
+  */
+  
+  return Promise.all([this.getInProgressOrders(),this.getAcceptedOrders()])
+    .spread(function(inProgressOrders,acceptedOrders){
+      var timeUntilCompletion;
+      var numOrders = inProgressOrders.length + acceptedOrders.length;
       if(order.marketPlaceId == 'eu'){
         timeUntilCompletion = moment().add(3,'m').utc().format();
       }
       else if (order.marketPlaceId == 'itq') {
-        timeUntilCompletion = moment().add(orders.length * 2,'m'); // 2 min for every order that is in production
+        timeUntilCompletion = moment().add(numOrders * 2,'m'); // 2 min for every order that is in production
         timeUntilCompletion = timeUntilCompletion.add(3,'m'); // 3 min base delay
 
         timeUntilCompletion = timeUntilCompletion.utc().format();
       }
       else if (order.marketPlaceId == 'centigrade') {
-        timeUntilCompletion = moment().add(orders.length * 2,'m'); // 2 min for every order that is in production
+        timeUntilCompletion = moment().add(numOrders* 2,'m'); // 2 min for every order that is in production
         timeUntilCompletion = timeUntilCompletion.add(3,'m'); // 3 min base delay
 
         // Orders from centigrade will have a 30' delay (since people need to walk over)

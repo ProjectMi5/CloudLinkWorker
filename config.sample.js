@@ -16,10 +16,17 @@ if(true) {
   config.rest.getOrdersByStatus = 'getOrdersByStatus';
   config.rest.updateOrderStatus = 'updateOrderStatus';
   config.rest.updateOrder = 'updateOrder';
-  config.rest.dateFormat = 'YYYY-MM-DD[T]HH:mm:ss';
+  config.rest.dateFormat = 'YYYY-MM-DD[T]HH:mm:ss.SSS';
 
   // OPC UA
   config.OPCUAOrder = 'opc.tcp://x.y.z.a:4840/';
+
+  // Order processing rules
+  config.processing = {};
+  config.processing.marketplace = ['mi5','itq','eu'];
+  config.processing.acceptOrdersSince = "2016-05-16T16:45:48.000Z";
+  config.processing.maxOrdersProcessing =  2;
+  config.processing.blacklistOrderIds = []; // Orders with these orderIds will be ignored by the worker
 }
 
 // Run all on localhost
